@@ -99,14 +99,29 @@ workflows:
   version: 2
   test-and-release:
     jobs:
-      - test-linux
+      - test-linux:
+          filters:
+            tags:
+              only: /^\d+\.\d+\.\d+$/
       # - test-mac
-      - test-windows
+      - test-windows:
+          filters:
+            tags:
+              only: /^\d+\.\d+\.\d+$/
       - package-linux:
           requires: [test-linux]
+          filters:
+            tags:
+              only: /^\d+\.\d+\.\d+$/
       # - package-mac:
       #     requires: [test-mac]
       - package-windows:
           requires: [test-windows]
+          filters:
+            tags:
+              only: /^\d+\.\d+\.\d+$/
       - release:
           requires: [package-linux, package-windows]
+          filters:
+            tags:
+              only: /^\d+\.\d+\.\d+$/
