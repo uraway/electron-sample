@@ -1,0 +1,112 @@
+orbs:
+  win: circleci/windows@2.4.0
+
+executors:
+  linux:
+    docker:
+      - image: circleci/node:12-browsers
+  mac:
+    macos:
+      xcode: "11.3.1"
+
+commands:
+  install-deps:
+    steps:
+      - restore_cache:
+          keys:
+            - v1-dependencies-{{ arch }}-{{ checksum "package-lock.json" }}
+            - v1-dependencies-{{ arch }}
+      - run:
+          name: 依存関係のインストール
+          command: npm i
+      - save_cache:
+          paths:
+            - node_modules
+          key: v1-dependencies-{{ arch }}-{{ checksum "package-lock.json" }}
+  run-test:
+    steps:
+      - run:
+          name: テスト実行
+          command: npm run test
+      - store_artifacts:
+          path: ./tmp
+  persist_distribution:
+    steps:
+      - persist_to_workspace:
+          root: ./
+          paths:
+            - dist
+  store_distribution:
+    steps:
+      - store_artifacts:
+          path: ./dist
+
+version: 2.1
+jobs:
+  test-linux:
+    executor: linux
+    steps:
+      - checkout
+      - install-deps
+      - run-test
+  test-mac:
+    executor: mac
+    steps:
+      - checkout
+      - install-deps
+      - run-test
+  test-windows:
+    executor: win/default
+    steps:
+      - checkout
+      - install-deps
+      - run-test
+  package-linux:
+    executor: linux
+    steps:
+      - checkout
+      - install-deps
+      - run:
+          name: Linux向けパッケージの作成
+          command: npx electron-builder --linux
+      - persist_distribution
+  package-mac:
+    executor: mac
+    steps:
+      - checkout
+      - install-deps
+      - run:
+          name: macOS向けパッケージの作成
+          command: npx electron-builder --mac
+      - persist_distribution
+  package-windows:
+    executor: win/default
+    steps:
+      - checkout
+      - install-deps
+      - run:
+          name: Windows向けパッケージの作成
+          command: npx electron-builder --win
+      - persist_distribution
+  release:
+    executor: linux
+    steps:
+      - attach_workspace:
+          at: ./
+      - store_artifacts:
+          path: dist
+workflows:
+  version: 2
+  test-and-release:
+    jobs:
+      - test-linux
+      - test-mac
+      - test-windows
+      - package-linux:
+          requires: [test-linux]
+      - package-mac:
+          requires: [test-mac]
+      - package-windows:
+          requires: [test-windows]
+      - release:
+          requires: [package-linux, package-mac, package-windows]
