@@ -5,13 +5,20 @@ executors:
   linux:
     docker:
       - image: circleci/node:12-browsers
-  # mac:
-  #   macos:
-  #     xcode: "11.3.1"
+  mac:
+    macos:
+      xcode: "11.3.1"
 
-commands:
-  install-deps:
+version: 2.1
+
+jobs:
+  package:
+    parameters:
+      platform:
+        type: string
+    executor: << parameters.platform >>
     steps:
+      - checkout
       - restore_cache:
           keys:
             - v1-dependencies-{{ arch }}-{{ checksum "package-lock.json" }}
@@ -23,71 +30,25 @@ commands:
           paths:
             - node_modules
           key: v1-dependencies-{{ arch }}-{{ checksum "package-lock.json" }}
-  run-test:
-    steps:
-      - run:
-          name: Run test
-          command: npm run test
-      - store_artifacts:
-          path: ./tmp
-  persist_distribution:
-    steps:
+      - unless:
+          condition:
+            - equal: [ << parameters.platform >>, win/default ]
+          steps:
+            - run:
+                name: Package << parameters.platform >>
+                command: npx electron-builder --<< parameters.platform >> --publish never
+      - when:
+          condition:
+            - equal: [ << parameters.platform >>, win/default ]
+          steps:
+            - run:
+                name: Package win
+                command: npx electron-builder --win --publish never
       - persist_to_workspace:
           root: ./
           paths:
             - dist
-  store_distribution:
-    steps:
-      - store_artifacts:
-          path: ./dist
 
-version: 2.1
-jobs:
-  test-linux:
-    executor: linux
-    steps:
-      - checkout
-      - install-deps
-      - run-test
-  test-mac:
-    executor: mac
-    steps:
-      - checkout
-      - install-deps
-      - run-test
-  test-windows:
-    executor: win/default
-    steps:
-      - checkout
-      - install-deps
-      - run-test
-  package-linux:
-    executor: linux
-    steps:
-      - checkout
-      - install-deps
-      - run:
-          name: Package linux
-          command: npx electron-builder --linux --publish never
-      - persist_distribution
-  package-mac:
-    executor: mac
-    steps:
-      - checkout
-      - install-deps
-      - run:
-          name: Package mac
-          command: npx electron-builder --mac --publish never
-      - persist_distribution
-  package-windows:
-    executor: win/default
-    steps:
-      - checkout
-      - install-deps
-      - run:
-          name: Package windows
-          command: npx electron-builder --win --publish never
-      - persist_distribution
   release:
     executor: linux
     steps:
@@ -95,33 +56,14 @@ jobs:
           at: ./
       - store_artifacts:
           path: dist
+
 workflows:
   version: 2
   test-and-release:
     jobs:
-      - test-linux:
-          filters:
-            tags:
-              only: /^\d+\.\d+\.\d+$/
-      # - test-mac
-      - test-windows:
-          filters:
-            tags:
-              only: /^\d+\.\d+\.\d+$/
-      - package-linux:
-          requires: [test-linux]
-          filters:
-            tags:
-              only: /^\d+\.\d+\.\d+$/
-      # - package-mac:
-      #     requires: [test-mac]
-      - package-windows:
-          requires: [test-windows]
-          filters:
-            tags:
-              only: /^\d+\.\d+\.\d+$/
+      - package:
+          matrix:
+            parameters:
+              platform: [linux, win/default]
       - release:
-          requires: [package-linux, package-windows]
-          filters:
-            tags:
-              only: /^\d+\.\d+\.\d+$/
+          requires: [package]
