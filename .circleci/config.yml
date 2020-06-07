@@ -68,7 +68,7 @@ jobs:
       - install-deps
       - run:
           name: Package linux
-          command: npx electron-builder --linux
+          command: npx electron-builder --linux --publish never
       - persist_distribution
   package-mac:
     executor: mac
@@ -77,7 +77,7 @@ jobs:
       - install-deps
       - run:
           name: Package mac
-          command: npx electron-builder --mac
+          command: npx electron-builder --mac --publish never
       - persist_distribution
   package-windows:
     executor: win/default
@@ -86,7 +86,7 @@ jobs:
       - install-deps
       - run:
           name: Package windows
-          command: npx electron-builder --win
+          command: npx electron-builder --win --publish never
       - persist_distribution
   release:
     executor: linux
