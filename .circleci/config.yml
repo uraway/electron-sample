@@ -5,9 +5,9 @@ executors:
   linux:
     docker:
       - image: circleci/node:12-browsers
-  mac:
-    macos:
-      xcode: "11.3.1"
+  # mac:
+  #   macos:
+  #     xcode: "11.3.1"
 
 commands:
   install-deps:
@@ -17,7 +17,7 @@ commands:
             - v1-dependencies-{{ arch }}-{{ checksum "package-lock.json" }}
             - v1-dependencies-{{ arch }}
       - run:
-          name: 依存関係のインストール
+          name: Install deps
           command: npm i
       - save_cache:
           paths:
@@ -26,7 +26,7 @@ commands:
   run-test:
     steps:
       - run:
-          name: テスト実行
+          name: Run test
           command: npm run test
       - store_artifacts:
           path: ./tmp
@@ -67,7 +67,7 @@ jobs:
       - checkout
       - install-deps
       - run:
-          name: Linux向けパッケージの作成
+          name: Package linux
           command: npx electron-builder --linux
       - persist_distribution
   package-mac:
@@ -76,7 +76,7 @@ jobs:
       - checkout
       - install-deps
       - run:
-          name: macOS向けパッケージの作成
+          name: Package mac
           command: npx electron-builder --mac
       - persist_distribution
   package-windows:
@@ -85,7 +85,7 @@ jobs:
       - checkout
       - install-deps
       - run:
-          name: Windows向けパッケージの作成
+          name: Package windows
           command: npx electron-builder --win
       - persist_distribution
   release:
@@ -100,13 +100,13 @@ workflows:
   test-and-release:
     jobs:
       - test-linux
-      - test-mac
+      # - test-mac
       - test-windows
       - package-linux:
           requires: [test-linux]
-      - package-mac:
-          requires: [test-mac]
+      # - package-mac:
+      #     requires: [test-mac]
       - package-windows:
           requires: [test-windows]
       - release:
-          requires: [package-linux, package-mac, package-windows]
+          requires: [package-linux, package-windows]
